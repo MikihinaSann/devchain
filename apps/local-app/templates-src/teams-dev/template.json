@@ -3,7 +3,7 @@
     "slug": "teams-dev",
     "name": "DevChain Development Flow",
     "description": "A multi-agent development workflow that automates software delivery through three phases:\n\n1. Planning — A Brainstormer agent collaborates with a technical validator to refine user requirements into an approved master plan, then breaks it down into epics and tasks.\n2. Execution — A Coder agent implements tasks while an Epic Manager reviews and controls the flow—approving, revising, or flagging issues until all work is complete.\n3. Code Review — A Code Reviewer audits the completed work against architectural standards, generating findings that feed back into new remediation tasks if needed.\n\nSupported agents: claude, codex, glm, agy, devin",
-    "version": "1.1.69",
+    "version": "1.1.70",
     "category": "development",
     "tags": [
       "development",
@@ -518,12 +518,30 @@
           "position": 9
         },
         {
+          "name": "glm53-flash-free",
+          "providerName": "opencode",
+          "description": "Junior/Mid-level software engineer for backend and frontend work. Free GLM-5.3-Flash via OpenCode — no Z.AI auth required",
+          "options": "--auto",
+          "env": null,
+          "model": "opencode/glm-5.3-flash-free",
+          "position": 10
+        },
+        {
+          "name": "ds-v41-flash",
+          "providerName": "opencode",
+          "description": "Junior/Mid-level software engineer for backend and frontend work. Free DeepSeek V4.1-Flash via OpenCode — no auth required",
+          "options": "--auto",
+          "env": null,
+          "model": "opencode/deepseek-v4.1-flash-free",
+          "position": 11
+        },
+        {
           "name": "devin",
           "providerName": "devin",
           "description": null,
           "options": "--permission-mode dangerous",
           "env": null,
-          "position": 10
+          "position": 12
         }
       ]
     },
@@ -570,6 +588,15 @@
           "model": "claude-fable-5-1[1m]",
           "effort": "xhigh",
           "position": 2
+        },
+        {
+          "name": "glm53-flash",
+          "providerName": "opencode",
+          "description": "Free GLM-5.3-Flash via OpenCode — no Z.AI auth required",
+          "options": "--auto",
+          "env": null,
+          "model": "opencode/glm-5.3-flash-free",
+          "position": 3
         }
       ]
     },
@@ -764,7 +791,9 @@
         "deepseek/deepseek-chat",
         "deepseek/deepseek-reasoner",
         "zai-coding-plan/glm-5.3",
-        "zai-coding-plan/glm-5.3-flash"
+        "zai-coding-plan/glm-5.3-flash",
+        "opencode/glm-5.3-flash-free",
+        "opencode/deepseek-v4.1-flash-free"
       ]
     },
     {
@@ -793,6 +822,20 @@
         "claude-fable-5-1[1m]",
         "claude-opus-4-8",
         "claude-opus-4-6[1m]"
+      ]
+    },
+    {
+      "providerName": "devin",
+      "models": [
+        "swe-2-high",
+        "swe-2-medium",
+        "swe-2-max",
+        "swe-2-medium-lightning",
+        "swe-2-high-lightning",
+        "swe-2-max-lightning",
+        "swe-2-flash-medium",
+        "swe-2-flash-high",
+        "swe-2-flash-max"
       ]
     }
   ],
@@ -1488,7 +1531,10 @@
             "opus",
             "gpt",
             "sonnet",
-            "gpt-med"
+            "gpt-med",
+            "glm53-flash",
+            "glm53-flash-free",
+            "ds-v41-flash"
           ]
         }
       ]
@@ -1611,6 +1657,36 @@
           "agentName": "Architect",
           "providerConfigName": "gpt",
           "modelOverride": null,
+          "effortOverride": null
+        }
+      ]
+    },
+    {
+      "name": "Devin+OpenCode[alloc]",
+      "description": "Per-role Devin + OpenCode allocation. Named agents run on Devin SWE-2: Brainstormer, Epic Manager and Code Reviewer on swe-2-high, Architect on swe-2-flash-high. Spawned Coders pick per spawn between free OpenCode GLM-5.3-Flash and DeepSeek-V4.1-Flash (plus the Z.AI-paid GLM variant); Red-Team Architect runs on free OpenCode GLM-5.3-Flash. Requires the devin and opencode providers.",
+      "agentConfigs": [
+        {
+          "agentName": "Brainstormer",
+          "providerConfigName": "devin",
+          "modelOverride": "swe-2-high",
+          "effortOverride": null
+        },
+        {
+          "agentName": "Epic Manager",
+          "providerConfigName": "devin",
+          "modelOverride": "swe-2-high",
+          "effortOverride": null
+        },
+        {
+          "agentName": "Code Reviewer",
+          "providerConfigName": "devin",
+          "modelOverride": "swe-2-high",
+          "effortOverride": null
+        },
+        {
+          "agentName": "Architect",
+          "providerConfigName": "devin",
+          "modelOverride": "swe-2-flash-high",
           "effortOverride": null
         }
       ]
