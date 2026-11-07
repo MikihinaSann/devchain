@@ -14,6 +14,8 @@ import { TransactionRunner } from '../../storage/db/transaction-runner';
 import { HostSharedVmStore } from '../host/host-shared-vm.store';
 import { readAbandonedProjects } from '../../storage/local/helpers/host-abandoned-projects';
 import { randomUUID } from 'node:crypto';
+import { homedir } from 'node:os';
+import { join } from 'node:path';
 import type { ProjectReplicaScope, ProjectReplicaV1 } from '@devchain/shared';
 import { ReplicaApplyError } from '../../../common/errors/error-types';
 import { remoteProjectSyncedEvent } from '../../events/catalog/remote.project.synced';
@@ -396,6 +398,62 @@ describe('ProjectReplicaApplier (integration)', () => {
       env: string;
     };
     expect(JSON.parse(claude.env)).toEqual({ UNSCOPED: 'x', API_KEY: 'secret-a' });
+  });
+
+  describe('root path handling', () => {
+    const rootPath = (id: string) =>
+      (
+        host.prepare('SELECT root_path FROM projects WHERE id = ?').get(id) as {
+          root_path: string;
+        }
+      ).root_path;
+    const foreignize = (replica: ProjectReplicaV1, prefix = '/mnt/c/Users/pc/code') => {
+      for (const project of replica.tables.projects) {
+        project.root_path = `${prefix}/${project.id}`;
+      }
+      return replica;
+    };
+
+    it('writes the replica root path verbatim without the mapping option', async () => {
+      const replica = foreignize(await build('attach'));
+      await applier.apply(replica, { mode: 'full', remoteId: null, cursor: null });
+      expect(rootPath('A')).toBe('/mnt/c/Users/pc/code/A');
+    });
+
+    it('maps a root path foreign to the host under the host home', async () => {
+      const replica = foreignize(await build('attach'));
+      await applier.apply(replica, {
+        mode: 'full',
+        remoteId: null,
+        cursor: null,
+        mapForeignRootPaths: true,
+      });
+      expect(rootPath('A')).toBe(join(homedir(), 'A'));
+    });
+
+    it('keeps a foreign root path that exists on the host', async () => {
+      const replica = foreignize(await build('attach'), '/tmp');
+      await applier.apply(replica, {
+        mode: 'full',
+        remoteId: null,
+        cursor: null,
+        mapForeignRootPaths: true,
+      });
+      expect(rootPath('A')).toBe('/tmp/A');
+    });
+
+    it('preserves the local root path of an already-known project', async () => {
+      hostSeed.seedProject('A');
+      host.prepare('UPDATE projects SET root_path = ? WHERE id = ?').run('/host/local/A', 'A');
+      const replica = foreignize(await build('attach'));
+      await applier.apply(replica, {
+        mode: 'full',
+        remoteId: null,
+        cursor: null,
+        mapForeignRootPaths: true,
+      });
+      expect(rootPath('A')).toBe('/host/local/A');
+    });
   });
 
   it('round-trips disabled skill and source switches across attach and detach', async () => {

@@ -83,6 +83,7 @@ export class HostService {
         cursor,
         requireNewProjects: !options.resnapshot,
         frozenAt: cursor,
+        mapForeignRootPaths: true,
       });
     } catch (error) {
       if (!heldBefore) this.freeze.forget(projectId);

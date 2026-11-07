@@ -28,6 +28,11 @@ export interface ApplyProjectReplicaOptions {
   keepInstanceConfig?: boolean;
   /** Commit the payload projects frozen at this time (a host importing an attach). */
   frozenAt?: string;
+  /**
+   * Map new projects' foreign root paths under this instance's home (a host
+   * importing an attach: the home machine's path may not exist here).
+   */
+  mapForeignRootPaths?: boolean;
 }
 
 /**
@@ -66,6 +71,7 @@ export class ProjectReplicaApplier {
         idSets: options.idSets,
         keepInstanceConfig: options.keepInstanceConfig,
         frozenAt: options.frozenAt,
+        mapForeignRootPaths: options.mapForeignRootPaths,
       },
     );
     for (const event of prepared) {

@@ -509,6 +509,12 @@ export interface ApplyProjectReplicaStorageOptions {
    * transaction, so a project created by the apply is never committed writable.
    */
   frozenAt?: string;
+  /**
+   * A new project's `root_path` that names a foreign machine's layout — a
+   * `/mnt/c/...` WSL path on a plain Linux VM, a `D:\...` drive — is remapped
+   * under this instance's home. Set for host attach imports.
+   */
+  mapForeignRootPaths?: boolean;
 }
 
 export interface FrozenProject {

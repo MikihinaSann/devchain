@@ -7,6 +7,9 @@ import type {
 import { mergeSourceSwitches } from '../helpers/skill-source-switches';
 import { SkillsSettingsDelegate } from '../../../settings/local/delegates/skills-settings.delegate';
 import { randomUUID } from 'node:crypto';
+import { existsSync } from 'node:fs';
+import { homedir } from 'node:os';
+import { basename, dirname, join, relative, resolve } from 'node:path';
 import type Database from 'better-sqlite3';
 import {
   PROJECT_REPLICA_LIVE_SETTING_KEYS,
@@ -122,6 +125,7 @@ class ReplicaApplyRun {
   private readonly idSets: ProjectReplicaIdSets | undefined;
   private readonly keepInstanceConfig: boolean;
   private readonly frozenAt: string | undefined;
+  private readonly mapForeignRootPaths: boolean;
 
   constructor(
     private readonly db: Database.Database,
@@ -132,6 +136,7 @@ class ReplicaApplyRun {
     this.idSets = options.idSets;
     this.keepInstanceConfig = options.keepInstanceConfig === true;
     this.frozenAt = options.frozenAt;
+    this.mapForeignRootPaths = options.mapForeignRootPaths === true;
     this.tables = replica.tables;
     this.projectIds = replica.tables.projects.map((project) => project.id);
     this.full = mode === 'full';
@@ -146,7 +151,7 @@ class ReplicaApplyRun {
     if (t.paired_device_workspace_grants !== undefined && !this.keepInstanceConfig) {
       this.applyWorkspaceGrants(t.paired_device_workspace_grants, t.authorityKids ?? []);
     }
-    this.upsertAll('projects', t.projects);
+    this.upsertAll('projects', this.projectRows(t.projects));
     if (this.frozenAt) this.freezeProjects(this.frozenAt);
     this.applyStatuses();
     this.upsertAll('tags', t.tags);
@@ -1236,6 +1241,48 @@ class ReplicaApplyRun {
         }
       }
     }
+  }
+
+  /**
+   * `root_path` names this instance's copy of the tree — local state, not
+   * syncable state. Rows already stored keep their local path (a remote's path
+   * applied here would point nowhere), and a host attach import maps a foreign
+   * path — a `/mnt/c/...` source does not exist on a plain VM — under this
+   * home. A foreign path that exists here is respected as deliberate.
+   */
+  private projectRows<T extends { id: string; root_path: string }>(rows: T[]): T[] {
+    const existing = new Map<string, string>();
+    const takenPaths = new Map<string, string>();
+    for (const row of this.db.prepare('SELECT id, root_path FROM projects').all() as {
+      id: string;
+      root_path: string;
+    }[]) {
+      existing.set(row.id, row.root_path);
+      takenPaths.set(row.root_path, row.id);
+    }
+    const home = homedir();
+    return rows.map((row) => {
+      const local = existing.get(row.id);
+      if (local !== undefined) return { ...row, root_path: local };
+      if (!this.mapForeignRootPaths) return row;
+      const rel = relative(resolve(home), resolve(row.root_path));
+      if (
+        (rel !== '' && !rel.startsWith('..')) ||
+        existsSync(row.root_path) ||
+        existsSync(dirname(row.root_path))
+      )
+        return row;
+      const base = basename(row.root_path);
+      const mapped = join(home, base);
+      const owner = takenPaths.get(mapped);
+      return {
+        ...row,
+        root_path:
+          owner === undefined || owner === row.id
+            ? mapped
+            : join(home, `${base}-${row.id.slice(0, 8)}`),
+      };
+    });
   }
 
   /**
